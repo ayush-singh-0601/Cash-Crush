@@ -1,9 +1,10 @@
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { ClerkProvider } from "@clerk/nextjs";
-import { ConvexClientProvider } from "@/components/convex-client-provider";
+import { ConvexClientProvider } from "./ConvexClientProvider";
 import Header from "@/components/header";
-import { Toaster } from "sonner";
+import { Toaster } from "@/components/ui/sonner";
+import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
+import AppSidebar from "@/components/app-sidebar";
 import BottomNav from "@/components/bottom-nav";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -25,20 +26,21 @@ export default function RootLayout({ children }) {
         <meta name="apple-mobile-web-app-title" content="Cash Crush" />
       </head>
       <body className={`${inter.className}`}>
-        <script>
-          {`if ('serviceWorker' in navigator) { window.addEventListener('load', function() { navigator.serviceWorker.register('/service-worker.js'); }); }`}
-        </script>
-        <ClerkProvider
-          publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
-        >
-          <ConvexClientProvider>
-            <main className="min-h-screen pb-24">
-              <Toaster richColors />
-              {children}
-            </main>
-            <BottomNav />
-          </ConvexClientProvider>
-        </ClerkProvider>
+        <ConvexClientProvider>
+          <SidebarProvider>
+            <AppSidebar />
+            <SidebarInset>
+              <div className="flex flex-col min-h-screen bg-gray-50">
+                <Header />
+                <main className="flex-1 p-4 pt-20 pb-20 md:pb-4">
+                  {children}
+                </main>
+                <BottomNav />
+              </div>
+            </SidebarInset>
+          </SidebarProvider>
+          <Toaster />
+        </ConvexClientProvider>
       </body>
     </html>
   );

@@ -251,33 +251,6 @@ export default function GroupExpensesPage() {
               </CardHeader>
               <CardContent>
                 <GroupBalances balances={balances} />
-                {balances && balances.length > 0 && (
-                  <div className="mt-4 pt-4 border-t">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-sm font-medium">Send Payment Reminders</h3>
-                      {/* Optionally, you can add a main reminder button here for all */}
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {balances.filter(b => b.amount < 0).length > 0 ? (
-                        balances.filter(b => b.amount < 0).map(balance => (
-                          <PaymentReminder
-                            key={balance.userId}
-                            userId={balance.userId}
-                            userName={balance.userName}
-                            userEmail={userLookupMap[balance.userId]?.email}
-                            amount={Math.abs(balance.amount)}
-                            isGroup={true}
-                          />
-                        ))
-                      ) : (
-                        <Button variant="outline" size="sm" disabled title="No one owes money right now">
-                          <Mail className="h-4 w-4" />
-                          Send Reminder
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                )}
               </CardContent>
             </Card>
           </div>

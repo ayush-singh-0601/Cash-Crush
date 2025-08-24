@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ArrowUpCircle, ArrowDownCircle, User } from "lucide-react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Legend } from "recharts";
 import { motion } from "framer-motion";
+import { PaymentReminder } from "@/components/payment-reminder";
 import React from "react";
 
 function AnimatedNumber({ value, prefix = "", decimals = 2, className = "" }) {
@@ -162,24 +163,33 @@ export function GroupBalances({ balances }) {
                 </h3>
                 <div className="space-y-3">
                   {owedByMembers.map((member) => (
-                    <div
-                      key={member.id}
-                      className="flex items-center justify-between"
-                    >
-                      <div className="flex items-center gap-2">
-                        <motion.div whileHover={{ scale: 1.15, rotate: 6 }}>
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage src={member.imageUrl} />
-                            <AvatarFallback>
-                              {member.name?.charAt(0) ?? "?"}
-                            </AvatarFallback>
-                          </Avatar>
-                        </motion.div>
-                        <span className="text-sm">{member.name}</span>
+                    <div key={member.id} className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <motion.div whileHover={{ scale: 1.15, rotate: 6 }}>
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage src={member.imageUrl} />
+                              <AvatarFallback>
+                                {member.name?.charAt(0) ?? "?"}
+                              </AvatarFallback>
+                            </Avatar>
+                          </motion.div>
+                          <span className="text-sm">{member.name}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-green-600">
+                            ₹{member.amount.toFixed(2)}
+                          </span>
+                          <PaymentReminder
+                            userId={member.id}
+                            userName={member.name}
+                            userEmail={member.email}
+                            amount={member.amount}
+                            senderName="Your friend"
+                            description="Outstanding balance"
+                          />
+                        </div>
                       </div>
-                      <span className="font-medium text-green-600">
-                        ₹{member.amount.toFixed(2)}
-                      </span>
                     </div>
                   ))}
                 </div>

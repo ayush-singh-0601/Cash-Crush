@@ -1,7 +1,10 @@
+"use client";
+
 import { useQuery, useMutation } from "convex/react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 
+// Custom hook for Convex queries with error handling
 export const useConvexQuery = (query, ...args) => {
   // If query is null, undefined, or "skip", return default values without calling useQuery
   if (!query || query === "skip") {

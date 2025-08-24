@@ -2,6 +2,9 @@ import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ArrowUpCircle, ArrowDownCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { PaymentReminder } from "@/components/payment-reminder";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import React from "react";
 
 function AnimatedNumber({ value, prefix = "", decimals = 2, className = "" }) {
@@ -37,6 +40,9 @@ export function BalanceSummary({ balances }) {
   const hasOwing = oweDetails.youOwe.length > 0;
 
   const isAllSettled = !hasOwed && !hasOwing;
+  
+  // Get current user for sender name
+  const currentUser = useQuery(api.users.getCurrentUser);
 
   return (
     <motion.div
@@ -76,24 +82,35 @@ export function BalanceSummary({ balances }) {
           </h3>
           <div className="space-y-3">
             {oweDetails.youAreOwedBy.map((item) => (
-              <Link
-                href={`/person/${item.userId}`}
-                key={item.userId}
-                className="flex items-center justify-between hover:bg-white/20 p-2 rounded-md transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  <motion.div whileHover={{ scale: 1.15, rotate: 6 }}>
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={item.imageUrl} />
-                      <AvatarFallback>{item.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                  </motion.div>
-                  <span className="text-sm font-semibold text-white drop-shadow-lg">{item.name}</span>
+              <div key={item.userId} className="space-y-2">
+                <Link
+                  href={`/person/${item.userId}`}
+                  className="flex items-center justify-between hover:bg-white/20 p-2 rounded-md transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <motion.div whileHover={{ scale: 1.15, rotate: 6 }}>
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={item.imageUrl} />
+                        <AvatarFallback>{item.name.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                    </motion.div>
+                    <span className="text-sm font-semibold text-white drop-shadow-lg">{item.name}</span>
+                  </div>
+                  <span className="font-bold text-green-600 text-lg">
+                    <AnimatedNumber value={item.amount} prefix="₹" decimals={2} />
+                  </span>
+                </Link>
+                <div className="pl-10">
+                  <PaymentReminder
+                    userId={item.userId}
+                    userName={item.name}
+                    userEmail={item.email}
+                    amount={item.amount}
+                    senderName={currentUser?.name || 'Your friend'}
+                    description="Outstanding balance"
+                  />
                 </div>
-                <span className="font-bold text-green-600 text-lg">
-                  <AnimatedNumber value={item.amount} prefix="₹" decimals={2} />
-                </span>
-              </Link>
+              </div>
             ))}
           </div>
         </div>

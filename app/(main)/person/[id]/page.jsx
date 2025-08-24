@@ -75,7 +75,7 @@ export default function PersonExpensesPage() {
   // Use Convex's "skip" pattern for conditional queries
   const data = useQuery(
     api.expenses.getExpensesBetweenUsers,
-    !isViewingSelf && params.id ? { userId: params.id } : "skip"
+    !isViewingSelf && params.id && currentUser?._id ? { userId: params.id } : "skip"
   );
   const isLoading = data === undefined;
   
@@ -250,6 +250,8 @@ export default function PersonExpensesPage() {
                 userName={otherUser.name} 
                 userEmail={otherUser.email} 
                 amount={Math.abs(balance)} 
+                senderName={currentUser?.name || 'Your friend'}
+                description={`Outstanding balance`}
               />
             ) : (
               <div className="border-2 border-blue-500 p-2 bg-blue-50 text-xs">

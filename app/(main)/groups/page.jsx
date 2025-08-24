@@ -42,6 +42,47 @@ export default function GroupsPage() {
             </Button>
           </div>
         </div>
+
+        {/* Group Templates */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <GroupIcon className="w-5 h-5" />
+              Quick Group Templates
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {[
+                { name: "Office Team", icon: "👔", description: "Lunch, coffee, team outings", categories: ["Food & Dining", "Entertainment"] },
+                { name: "Roommates", icon: "🏠", description: "Rent, utilities, groceries", categories: ["Bills & Utilities", "Shopping"] },
+                { name: "Study Group", icon: "🎓", description: "Books, supplies, snacks", categories: ["Education", "Food & Dining"] },
+                { name: "Family", icon: "👨‍👩‍👧‍👦", description: "Household expenses, outings", categories: ["Shopping", "Entertainment", "Bills & Utilities"] }
+              ].map((template, index) => (
+                <Button
+                  key={index}
+                  variant="outline"
+                  className="h-auto p-4 flex flex-col items-start text-left"
+                  onClick={() => {
+                    // Pre-fill group creation with template
+                    setIsCreateGroupModalOpen(true);
+                  }}
+                >
+                  <div className="text-2xl mb-2">{template.icon}</div>
+                  <div className="font-semibold mb-1">{template.name}</div>
+                  <div className="text-xs text-gray-500 mb-2">{template.description}</div>
+                  <div className="flex flex-wrap gap-1">
+                    {template.categories.slice(0, 2).map((cat, i) => (
+                      <span key={i} className="text-xs bg-gray-100 px-2 py-1 rounded">
+                        {cat.split(' ')[0]}
+                      </span>
+                    ))}
+                  </div>
+                </Button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {isLoading ? (
             Array.from({ length: 2 }).map((_, i) => (

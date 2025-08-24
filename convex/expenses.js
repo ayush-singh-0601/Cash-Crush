@@ -159,6 +159,7 @@ export const getExpensesBetweenUsers = query({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId }) => {
     const me = await ctx.runQuery(internal.users.getCurrentUser);
+    if (!me) throw new Error("User not authenticated");
     if (me._id === userId) throw new Error("Cannot query yourself");
 
     const myPaid = await ctx.db

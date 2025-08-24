@@ -27,6 +27,7 @@ import { CalendarIcon } from "lucide-react";
 import { getAllCategories } from "@/lib/expense-categories";
 import { motion } from "framer-motion";
 import { Loader2, CheckCircle2 } from "lucide-react";
+import { FunnyBudgetPopup } from "@/components/budget/funny-budget-popup";
 
 const expenseSchema = z.object({
   description: z.string().min(1, "Description is required"),
@@ -48,9 +49,13 @@ export function ExpenseForm({ type = "individual", onSuccess }) {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [splits, setSplits] = useState([]);
+  const [showBudgetPopup, setShowBudgetPopup] = useState(false);
+  const [budgetPopupData, setBudgetPopupData] = useState(null);
   const { data: currentUser } = useConvexQuery(api.users.getCurrentUser);
+  const { data: budgetAnalysis } = useConvexQuery(api.budgets.getBudgetAnalysis);
 
   const createExpense = useConvexMutation(api.expenses.createExpense);
+  const checkBudgetBreach = useConvexMutation(api.budgets.checkBudgetBreach);
   const categories = getAllCategories();
   const {
     register,
@@ -114,6 +119,35 @@ export function ExpenseForm({ type = "individual", onSuccess }) {
         );
         return;
       }
+
+      // Check budget breach before creating expense
+      const userSplit = formattedSplits.find(split => split.userId === currentUser._id);
+      const userAmount = userSplit ? userSplit.amount : 0;
+      
+      if (userAmount > 0) {
+        try {
+          const budgetWarnings = await checkBudgetBreach.mutate({
+            amount: userAmount,
+            category: data.category || "other",
+          });
+
+          if (budgetWarnings && budgetWarnings.length > 0) {
+            const hasHighSeverity = budgetWarnings.some(w => w.severity === 'high');
+            if (hasHighSeverity) {
+              const proceed = window.confirm(
+                `⚠️ Budget Alert!\n\n${budgetWarnings.map(w => w.message).join('\n\n')}\n\nDo you want to proceed anyway?`
+              );
+              if (!proceed) {
+                return;
+              }
+            }
+          }
+        } catch (budgetError) {
+          console.log("Budget check failed:", budgetError);
+          // Continue with expense creation even if budget check fails
+        }
+      }
+
       const groupId = type === "individual" ? undefined : data.groupId;
       await createExpense.mutate({
         description: data.description,
@@ -125,6 +159,21 @@ export function ExpenseForm({ type = "individual", onSuccess }) {
         splits: formattedSplits,
         groupId,
       });
+
+      // Show funny budget popup after successful expense creation
+      if (budgetAnalysis && userAmount > 0) {
+        setBudgetPopupData({
+          ...budgetAnalysis,
+          expenseAmount: userAmount,
+        });
+        setShowBudgetPopup(true);
+        
+        // Auto-hide popup after 8 seconds
+        setTimeout(() => {
+          setShowBudgetPopup(false);
+        }, 8000);
+      }
+
       toast.success("Expense created successfully!");
       reset();
       const otherParticipant = participants.find(
@@ -461,6 +510,15 @@ export function ExpenseForm({ type = "individual", onSuccess }) {
           )}
         </Button>
       </div>
+
+      {/* Funny Budget Popup */}
+      <FunnyBudgetPopup
+        isVisible={showBudgetPopup}
+        onClose={() => setShowBudgetPopup(false)}
+        budgetData={budgetPopupData}
+        expenseAmount={budgetPopupData?.expenseAmount}
+        triggerType="expense_added"
+      />
     </form>
   );
 }

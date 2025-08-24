@@ -38,7 +38,7 @@ export const getCurrentUser = query({
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      throw new Error("Not authenticated");
+      return null;
     }
 
     const user = await ctx.db
@@ -49,7 +49,7 @@ export const getCurrentUser = query({
       .first();
 
     if (!user) {
-      throw new Error("User not found");
+      return null;
     }
 
     return user;

@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { api } from '@/convex/_generated/api';
 import { useAction } from 'convex/react';
 import { Mail, AlertTriangle, Laugh, AlertCircle, Heart, Zap } from 'lucide-react';
-import { createCashCrushReminderTemplate, reminderTypes } from '@/lib/email-templates/cash-crush-reminder';
+import { generateReminderEmail } from '@/lib/email-fallback';
 
 export function PaymentReminder({ userId, userName, userEmail, amount, isGroup = false, groupName = '', description = '', senderName = 'Your friend' }) {
   const [open, setOpen] = useState(false);
@@ -23,50 +23,95 @@ export function PaymentReminder({ userId, userName, userEmail, amount, isGroup =
   const handleSendReminder = async (e) => {
     if (e) e.preventDefault();
     
-    // Check if sendEmail is a function
-    if (typeof sendEmail !== 'function') {
-      console.error('sendEmail is not a function:', sendEmail);
-      toast.error('Email service not available');
-      return;
-    }
+    // Show immediate feedback
+    toast.loading('Preparing to send reminder...', { id: 'sending-reminder' });
 
     setIsSending(true);
-    
+
     try {
-      // Generate the beautiful Cash Crush email template
-      const emailTemplate = createCashCrushReminderTemplate({
+      // Validate required fields
+      if (!userEmail) {
+        throw new Error('Recipient email is required');
+      }
+      if (!userName) {
+        throw new Error('Recipient name is required');
+      }
+      if (!amount || amount <= 0) {
+        throw new Error('Valid amount is required');
+      }
+      if (!senderName) {
+        throw new Error('Sender name is required');
+      }
+      // Call the email sending action with reminder type and custom message
+      await sendEmail({
+        to: userEmail,
         recipientName: userName,
         senderName: senderName,
         amount: amount,
-        description: reminderType === 'custom' ? customMessage : description,
-        isGroup: isGroup,
-        groupName: groupName,
+        description: description || 'Outstanding balance',
+        isGroup: isGroup || false,
+        groupName: groupName || '',
         reminderType: reminderType,
-        logoBase64: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAACAAAAAgACAIAAAA9xURnAAAAA3NCSVQICAjb4U/gAAAJk3pUWHRSYXcgcHJvZmlsZSB0eXBlIEFQUDEAAFiFtZhbshzHDUT/uQotoV5AoZZTD5RCEQ7bof1/+KBneHlJUQ76w9NST0/feiYSiSx++d3/6X/+sX/795//un/8w7/8xqe0bl/aaKPMlJKl16emlEvK8c399Xl/18xT4aG/f5fXtw7rqX1qN1/f+z2m0EKr5s7/rw5xG69x2tdpa+FijJl+NneKRX6a42PF9W/ey/fv53tNJc0Weyjv92bpu482LbXWUY0VSS0qPBfNtbMD0VbTf7/ek7zmLd/2JyXGfL/7ft/5o99XbO" // Your logo base64
+        customMessage: customMessage.trim() || undefined,
       });
 
-      // Generate subject based on reminder type
-      const subjects = {
-        normal: `Payment reminder from ${senderName} - Cash Crush`,
-        urgent: `🚨 Urgent payment reminder - Cash Crush`,
-        funny: `💰 Your money is calling! - Cash Crush`,
-        polite: `Gentle payment reminder - Cash Crush`,
-        custom: `Payment reminder - Cash Crush`
+      const typeLabels = {
+        normal: 'friendly',
+        polite: 'polite',
+        urgent: 'urgent',
+        funny: 'funny'
       };
 
-      await sendEmail({
-        to: userEmail,
-        subject: subjects[reminderType] || subjects.normal,
-        html: emailTemplate
-      });
-
-      toast.success('Beautiful Cash Crush reminder sent successfully! 💰');
+      toast.success(`${typeLabels[reminderType] || 'Friendly'} reminder sent to ${userName}! 📧`, { id: 'sending-reminder' });
       setOpen(false);
+      
+      // Reset form
+      setReminderType('normal');
+      setCustomMessage('');
+      
+      // Reset form
+      setCustomMessage('');
+      setReminderType('normal');
+      
     } catch (error) {
-      console.error('Error sending reminder:', error);
-      const errorDescription = error.message || 'An error occurred while sending the reminder.';
-      toast.error('Failed to send reminder', {
+      console.error('Error sending reminder:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+        code: error.code,
+        response: error.response?.data || 'No response data'
+      });
+      
+      let errorMessage = 'Failed to send reminder';
+      let errorDescription = 'Please try again';
+      
+      if (error.message) {
+        if (error.message.includes('GMAIL_USER') || error.message.includes('GMAIL_APP_PASSWORD')) {
+          errorMessage = 'Email service not configured';
+          errorDescription = 'Please contact support to set up email functionality';
+        } else if (error.message.includes('Invalid login') || error.message.includes('EAUTH')) {
+          errorMessage = 'Email authentication failed';
+          errorDescription = 'Gmail credentials need to be updated';
+        } else if (error.message.includes('network') || error.message.includes('ECONNECTION')) {
+          errorMessage = 'Network connection failed';
+          errorDescription = 'Please check your internet connection';
+        } else if (error.message.includes('timeout') || error.message.includes('ETIMEDOUT')) {
+          errorMessage = 'Request timed out';
+          errorDescription = 'Please try again in a moment';
+        } else {
+          errorMessage = 'Email sending failed';
+          errorDescription = error.message.substring(0, 100);
+        }
+      }
+      
+      toast.error(`❌ ${errorMessage}`, {
+        id: 'sending-reminder',
+        duration: 6000,
         description: errorDescription,
+        action: {
+          label: 'Retry',
+          onClick: () => handleSendReminder()
+        }
       });
     } finally {
       setIsSending(false);
@@ -79,7 +124,7 @@ export function PaymentReminder({ userId, userName, userEmail, amount, isGroup =
         variant="outline" 
         size="sm" 
         onClick={() => setOpen(true)}
-        className="flex items-center gap-1"
+        className="flex items-center gap-1 hover:bg-emerald-50 hover:border-emerald-300 transition-colors"
         type="button"
       >
         <Mail className="h-4 w-4" />
@@ -199,17 +244,18 @@ export function PaymentReminder({ userId, userName, userEmail, amount, isGroup =
             <Button 
               onClick={handleSendReminder} 
               disabled={isSending}
-              className="w-full bg-emerald-600 hover:bg-emerald-700"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 transition-all duration-200"
+              type="button"
             >
               {isSending ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Sending Beautiful Email...
+                  Sending Email...
                 </>
               ) : (
                 <>
                   <Mail className="h-4 w-4 mr-2" />
-                  Send Cash Crush Reminder
+                  Send Reminder
                 </>
               )}
             </Button>

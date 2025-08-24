@@ -7,46 +7,74 @@ import nodemailer from "nodemailer";
 export const sendEmail = action({
   args: {
     to: v.string(),
-    subject: v.string(),
-    html: v.string(),
-    text: v.optional(v.string()),
+    recipientName: v.string(),
+    senderName: v.string(),
+    amount: v.number(),
+    description: v.optional(v.string()),
+    isGroup: v.optional(v.boolean()),
+    groupName: v.optional(v.string()),
+    reminderType: v.optional(v.string()),
+    customMessage: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    console.log("sendEmail function called with args:", args);
+    console.log("sendEmail function called with args:", {
+      to: args.to,
+      recipientName: args.recipientName,
+      senderName: args.senderName,
+      amount: args.amount,
+      reminderType: args.reminderType,
+      hasCustomMessage: !!args.customMessage
+    });
     
     // Check if required environment variables are set
     if (!process.env.GMAIL_USER) {
       console.error("GMAIL_USER environment variable is not set");
-      return { 
-        success: false, 
-        error: "GMAIL_USER environment variable is not configured. Please add GMAIL_USER=your-email@gmail.com to your .env.local file." 
-      };
+      throw new Error("GMAIL_USER environment variable is not configured. Please add GMAIL_USER=your-email@gmail.com to your .env.local file.");
     }
 
     if (!process.env.GMAIL_APP_PASSWORD) {
       console.error("GMAIL_APP_PASSWORD environment variable is not set");
-      return { 
-        success: false, 
-        error: "GMAIL_APP_PASSWORD environment variable is not configured. Please add GMAIL_APP_PASSWORD=your-16-character-app-password to your .env.local file." 
-      };
+      throw new Error("GMAIL_APP_PASSWORD environment variable is not configured. Please add GMAIL_APP_PASSWORD=your-16-character-app-password to your .env.local file.");
     }
-
-    console.log("Environment variables found:", {
-      GMAIL_USER: process.env.GMAIL_USER,
-      GMAIL_APP_PASSWORD: process.env.GMAIL_APP_PASSWORD ? "***" : "NOT SET"
-    });
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(args.to)) {
-      return { 
-        success: false, 
-        error: "Invalid email address format" 
-      };
+      throw new Error("Invalid email address format");
     }
 
+    // Import the email template
+    const { createCashCrushReminderTemplate } = await import("../lib/email-templates/cash-crush-reminder.js");
+    
+    // Generate email content with reminder type and custom message
+    const html = createCashCrushReminderTemplate({
+      recipientName: args.recipientName,
+      senderName: args.senderName,
+      amount: args.amount,
+      description: args.customMessage || args.description || 'Outstanding balance',
+      isGroup: args.isGroup || false,
+      groupName: args.groupName || '',
+      reminderType: args.reminderType || 'normal'
+    });
+
+    // Create plain text version
+    const text = `Hi ${args.recipientName},
+
+${args.senderName} is sending you a ${args.reminderType || 'friendly'} reminder about your outstanding balance${args.isGroup ? ` in the ${args.groupName} group` : ''}.
+
+Amount: ₹${args.amount.toFixed(2)}
+${args.customMessage ? `Message: ${args.customMessage}` : ''}
+${args.description ? `For: ${args.description}` : ''}
+
+Please settle up when convenient.
+
+Thanks,
+The Cash Crush Team`;
+
+    const subject = `${args.reminderType === 'urgent' ? 'URGENT: ' : ''}Payment Reminder from ${args.senderName} - Cash Crush`;
+
     try {
-      // Create Gmail transporter with simpler configuration
+      // Create Gmail transporter
       const transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
@@ -58,15 +86,15 @@ export const sendEmail = action({
       const mailOptions = {
         from: process.env.GMAIL_USER,
         to: args.to,
-        subject: args.subject,
-        html: args.html,
-        text: args.text,
+        subject: subject,
+        html: html,
+        text: text,
       };
 
       console.log("Attempting to send email...");
       const result = await transporter.sendMail(mailOptions);
       console.log("Email sent successfully:", result);
-      return { success: true, id: result.messageId };
+      return result.messageId;
     } catch (error) {
       console.error("Failed to send email:", error);
       console.error("Error details:", {
@@ -88,7 +116,7 @@ export const sendEmail = action({
         errorMessage = "Invalid Gmail credentials. Please check your GMAIL_USER and GMAIL_APP_PASSWORD.";
       }
       
-      return { success: false, error: errorMessage };
+      throw new Error(errorMessage);
     }
   },
 });
